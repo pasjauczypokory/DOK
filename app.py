@@ -4,6 +4,7 @@ from datetime import date
 import re
 import io
 from pypdf import PdfWriter
+from pypdf.generic import NameObject, NumberObject
 
 def pobierz_dane_z_api(nip):
     dzisiaj = date.today().strftime("%Y-%m-%d")
@@ -26,8 +27,21 @@ def pobierz_dane_z_api(nip):
 
 # --- WYGLĄD STRONY ---
 st.set_page_config(page_title="Generator T-Mobile", page_icon="📝")
-st.title("🩷 Generator Dokumentów T-Mobile")
+st.title("🩷 Generator")
 
+# --- SZYBKIE SKRÓTY (LINKI) ---
+st.markdown("### 📌 Przydatne linki")
+st.markdown("""
+[🍊 Konsola Orange](https://sso.online.orange.pl/capGui/?url=https://esklep.online.orange.pl/konsola-konsultanta) &nbsp; | &nbsp; 
+[🏢 JDG (CEIDG)](https://www.biznes.gov.pl/pl/wyszukiwarka-firm/) &nbsp; | &nbsp; 
+[🏛️ Wyszukiwarka KRS](https://wyszukiwarka-krs.ms.gov.pl/) &nbsp; | &nbsp; 
+[💻 VDI T-Mobile](https://login.t-mobile.pl/) &nbsp; | &nbsp; 
+[📡 W jakiej sieci numer?](https://bip.uke.gov.pl/numeracja/dostawca-uslug/) &nbsp; | &nbsp; 
+[📄 ILovePDF](https://www.ilovepdf.com/pl)
+""")
+st.divider() # Dodaje ładną, poziomą linię oddzielającą linki od reszty generatora
+
+# --- RESZTA APLIKACJI ---
 st.header("1. Wybierz rodzaj klienta")
 typ_klienta = st.radio("Rodzaj podmiotu:", ["Spółka (KRS)", "Jednoosobowa Działalność (JDG)"], horizontal=True)
 
@@ -62,9 +76,8 @@ if st.button("Generuj PDF", type="primary"):
             plik_szablonu = "KRS.pdf" if typ_klienta == "Spółka (KRS)" else "JDG.pdf"
             dowod_z_napisem = f"Dowód Osobisty {nr_dowodu_input.strip()}" if nr_dowodu_input else ""
             
-            # --- ZBIORCZE MAPOWANIE (KRS + JDG) ---
             dane_do_pdf = {
-                "Firma": dane_firmy['nazwa'], # Pobiera od razu całą nazwę z GUS
+                "Firma": dane_firmy['nazwa'], 
                 "adres": dane_firmy['adres'],
                 "NIP": nip,
                 "REGON": dane_firmy['regon'],
@@ -90,16 +103,21 @@ if st.button("Generuj PDF", type="primary"):
             try:
                 writer = PdfWriter(clone_from=plik_szablonu)
                 
-                # --- POPRAWKA DLA MACA (Wymusza widoczność w Preview) ---
-                writer.set_need_appearances_writer()
+                try:
+                    writer.add_need_appearances()
+                except Exception:
+                    pass 
                 
                 for strona in writer.pages:
                     writer.update_page_form_field_values(strona, dane_do_pdf)
                 
-                # --- POPRAWKA DLA SZAFIRA (Spłaszcza plik, by nie gubił danych) ---
-                writer.flatten() 
+                for page in writer.pages:
+                     if "/Annots" in page:
+                        for annot in page["/Annots"]:
+                            annot_obj = annot.get_object()
+                            if annot_obj.get("/Subtype") == "/Widget":
+                                annot_obj.update({NameObject("/Ff"): NumberObject(1)})
 
-                # Bezpieczna nazwa pliku (skraca tylko do nazwy zapisu na dysku, nie w dokumencie)
                 surowa_nazwa = dane_firmy['nazwa']
                 formy_prawne = r"\b(SPÓŁKA Z OGRANICZONĄ ODPOWIEDZIALNOŚCIĄ|SPÓŁKA Z O\.O\.|SP\. Z O\.O\.|SP Z O O|SPÓŁKA Z O O|SPÓŁKA JAWNA|SP\. J\.|SP J|SPÓŁKA AKCYJNA|S\.A\.|SA|SPÓŁKA KOMANDYTOWA|SP\. K\.|SP K|SPÓŁKA KOMANDYTOWO-AKCYJNA|S\.K\.A\.|SKA|SPÓŁKA PARTNERSKA|SP\. P\.|SP P|PROSTA SPÓŁKA AKCYJNA|P\.S\.A\.|PSA)\b"
                 krotka_nazwa = re.sub(formy_prawne, "", surowa_nazwa, flags=re.IGNORECASE).strip()
@@ -112,7 +130,7 @@ if st.button("Generuj PDF", type="primary"):
                 writer.write(pdf_bufor)
                 pdf_bufor.seek(0)
                 
-                st.success("Wygenerowano! Plik jest zgodny z systemem Mac i gotowy do podpisu Szafirem.")
+                st.success("Wygenerowano! Plik jest zgodny z systemem Mac i zablokowany (gotowy dla Szafira).")
                 st.download_button("⬇️ Pobierz PDF", data=pdf_bufor, file_name=nazwa_pliku_wyjsciowego, mime="application/pdf")
                 
             except FileNotFoundError:
