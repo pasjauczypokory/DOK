@@ -65,7 +65,6 @@ if st.button("Generuj PDF", type="primary"):
         else:
             dzisiaj = date.today()
             
-            # --- ZMIENNA LOGIKA ZALEŻNA OD PRZEŁĄCZNIKA ---
             if typ_klienta == "Spółka (KRS)":
                 plik_szablonu = "KRS.pdf"
                 dowod_z_napisem = ""
@@ -73,25 +72,36 @@ if st.button("Generuj PDF", type="primary"):
                 plik_szablonu = "JDG.pdf"
                 dowod_z_napisem = f"Dowód Osobisty {nr_dowodu_input.strip()}" if nr_dowodu_input else ""
             
-            # Mapowanie pól
+            # --- OSTATECZNE MAPOWANIE (KRS + JDG połączone) ---
             dane_do_pdf = {
                 "Firma": dane_firmy['nazwa'],
                 "adres": dane_firmy['adres'],
                 "NIP": nip,
                 "REGON": dane_firmy['regon'],
                 "KRS": dane_firmy['krs'],
+                
+                # Zabezpieczenie obu wariantów E-maila (z kropką dla JDG, bez dla KRS)
                 "Email": email_input,             
+                ".Email": email_input,             
+                
                 "Telefon": tel_input,             
                 "DO": dowod_z_napisem,                 
                 "PESEL": pesel_input,             
                 "ImieNazwisko": imie_input,       
-                "imie_i_nazwisko_klienta": "", 
+                "imie_i_nazwisko_klienta": imie_input, 
                 "Miejscowość": "Warszawa",             
                 "Haslo": "12345678",                   
                 "dzień": dzisiaj.strftime("%d"),
                 "miesiac": dzisiaj.strftime("%m"),
                 "rok": dzisiaj.strftime("%Y"),
-                "id": "" 
+                
+                # Zabezpieczenie małego i dużego ID
+                "id": "",
+                "ID": "",
+                
+                # Zabezpieczenie TAK/NIE
+                "TAK": "", 
+                "NIE": "" 
             }
             
             try:
@@ -113,7 +123,7 @@ if st.button("Generuj PDF", type="primary"):
                 krotka_nazwa = re.sub(r'[,.-]+$', '', krotka_nazwa).strip()
                 bezpieczna_nazwa_firmy = re.sub(r'[\\/*?:"<>|]', "", krotka_nazwa).strip()
                 
-                nazwa_pliku = f"ORK {bezpieczna_nazwa_firmy}.pdf"
+                nazwa_pliku_wyjsciowego = f"ORK {bezpieczna_nazwa_firmy}.pdf"
                 
                 # Bufor pamięci
                 pdf_bufor = io.BytesIO()
@@ -126,7 +136,7 @@ if st.button("Generuj PDF", type="primary"):
                 st.download_button(
                     label="⬇️ Pobierz gotową umowę PDF",
                     data=pdf_bufor,
-                    file_name=nazwa_pliku,
+                    file_name=nazwa_pliku_wyjsciowego,
                     mime="application/pdf"
                 )
                 
