@@ -26,18 +26,18 @@ def pobierz_dane_z_api(nip):
         return None
 
 # --- WYGLĄD STRONY ---
-st.set_page_config(page_title="Generator T-Mobile", page_icon="📝")
-st.title("🩷 Generator Dokumentów T-Mobile")
+st.set_page_config(page_title="Generator", page_icon="📝")
+st.title("🩷 Generator")
 
 # --- SZYBKIE SKRÓTY (LINKI) ---
-st.markdown("### 📌 Przydatne linki")
+st.markdown("### 📌 Linki")
 st.markdown("""
-[OMNI](https://sso.online.orange.pl/capGui/?url=https://esklep.online.orange.pl/konsola-konsultanta) &nbsp; | &nbsp; 
-[Wyszukiwarka JDG](https://www.biznes.gov.pl/pl/wyszukiwarka-firm/) &nbsp; | &nbsp; 
-[Wyszukiwarka KRS](https://wyszukiwarka-krs.ms.gov.pl/) &nbsp; | &nbsp; 
-[VDI](https://login.t-mobile.pl/) &nbsp; | &nbsp; 
-[W jakiej sieci numer?](https://bip.uke.gov.pl/numeracja/dostawca-uslug/) &nbsp; | &nbsp; 
-[iLovePDF](https://www.ilovepdf.com/pl)
+[🍊 OMNI](https://sso.online.orange.pl/capGui/?url=https://esklep.online.orange.pl/konsola-konsultanta) &nbsp; | &nbsp; 
+[🏢 Wyszukiwarka JDG](https://www.biznes.gov.pl/pl/wyszukiwarka-firm/) &nbsp; | &nbsp; 
+[🏛️ Wyszukiwarka KRS](https://wyszukiwarka-krs.ms.gov.pl/) &nbsp; | &nbsp; 
+[💻 VDI](https://login.t-mobile.pl/) &nbsp; | &nbsp; 
+[📡 W jakiej sieci numer?](https://bip.uke.gov.pl/numeracja/dostawca-uslug/) &nbsp; | &nbsp; 
+[📄 iLovePDF](https://www.ilovepdf.com/pl)
 """)
 st.divider() 
 
@@ -130,7 +130,9 @@ if st.button("Generuj PDF", type="primary"):
                 writer.write(pdf_bufor)
                 pdf_bufor.seek(0)
                 
-                st.success("Wygenerowano! Plik jest zgodny z systemem Mac i zablokowany (gotowy dla Szafira).")
+                # NOWA WIADOMOŚĆ SUKCESU
+                st.success("Wygenerowano! Podpisz mnie proszę podpisem kwalifikowanym. Miłego dnia!")
+                
                 st.download_button("⬇️ Pobierz PDF", data=pdf_bufor, file_name=nazwa_pliku_wyjsciowego, mime="application/pdf")
                 
             except FileNotFoundError:
