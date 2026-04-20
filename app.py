@@ -27,19 +27,19 @@ def pobierz_dane_z_api(nip):
 
 # --- WYGLĄD STRONY ---
 st.set_page_config(page_title="Generator T-Mobile", page_icon="📝")
-st.title("🩷 Generator")
+st.title("🩷 Generator Dokumentów T-Mobile")
 
 # --- SZYBKIE SKRÓTY (LINKI) ---
 st.markdown("### 📌 Przydatne linki")
 st.markdown("""
-[🍊 Konsola Orange](https://sso.online.orange.pl/capGui/?url=https://esklep.online.orange.pl/konsola-konsultanta) &nbsp; | &nbsp; 
-[🏢 JDG (CEIDG)](https://www.biznes.gov.pl/pl/wyszukiwarka-firm/) &nbsp; | &nbsp; 
-[🏛️ Wyszukiwarka KRS](https://wyszukiwarka-krs.ms.gov.pl/) &nbsp; | &nbsp; 
-[💻 VDI T-Mobile](https://login.t-mobile.pl/) &nbsp; | &nbsp; 
-[📡 W jakiej sieci numer?](https://bip.uke.gov.pl/numeracja/dostawca-uslug/) &nbsp; | &nbsp; 
-[📄 ILovePDF](https://www.ilovepdf.com/pl)
+[OMNI](https://sso.online.orange.pl/capGui/?url=https://esklep.online.orange.pl/konsola-konsultanta) &nbsp; | &nbsp; 
+[Wyszukiwarka JDG](https://www.biznes.gov.pl/pl/wyszukiwarka-firm/) &nbsp; | &nbsp; 
+[Wyszukiwarka KRS](https://wyszukiwarka-krs.ms.gov.pl/) &nbsp; | &nbsp; 
+[VDI](https://login.t-mobile.pl/) &nbsp; | &nbsp; 
+[W jakiej sieci numer?](https://bip.uke.gov.pl/numeracja/dostawca-uslug/) &nbsp; | &nbsp; 
+[iLovePDF](https://www.ilovepdf.com/pl)
 """)
-st.divider() # Dodaje ładną, poziomą linię oddzielającą linki od reszty generatora
+st.divider() 
 
 # --- RESZTA APLIKACJI ---
 st.header("1. Wybierz rodzaj klienta")
