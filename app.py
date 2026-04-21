@@ -48,6 +48,17 @@ typ_klienta = st.radio("Rodzaj podmiotu:", ["Spółka (KRS)", "Jednoosobowa Dzia
 st.header("2. Dane z bazy")
 nip_input = st.text_input("Wpisz NIP (10 cyfr)")
 
+# --- POPRAWKA: MOŻLIWOŚĆ EDYCJI NAZWY FIRMY ---
+nazwa_do_edycji = ""
+dane_z_api = None
+
+if nip_input and len(nip_input.strip().replace("-", "")) == 10:
+    dane_z_api = pobierz_dane_z_api(nip_input.strip().replace("-", ""))
+    if dane_z_api:
+        nazwa_do_edycji = dane_z_api['nazwa']
+
+finalna_nazwa_firmy = st.text_input("Pełna nazwa firmy (edytuj, jeśli brakuje nazwy własnej w JDG):", value=nazwa_do_edycji)
+
 st.header("3. Dane uzupełniające")
 col1, col2 = st.columns(2)
 with col1:
@@ -66,22 +77,24 @@ if st.button("Generuj PDF", type="primary"):
     
     if len(nip) != 10:
         st.warning("Podaj poprawny, 10-cyfrowy NIP!")
+    elif not finalna_nazwa_firmy:
+        st.error("Uzupełnij nazwę firmy!")
     else:
-        dane_firmy = pobierz_dane_z_api(nip)
-        
-        if not dane_firmy:
+        if not dane_z_api:
             st.error("Nie znaleziono firmy o takim NIP w bazie MF.")
         else:
             dzisiaj = date.today()
             plik_szablonu = "KRS.pdf" if typ_klienta == "Spółka (KRS)" else "JDG.pdf"
-            dowod_z_napisem = f"Dowód Osobisty {nr_dowodu_input.strip()}" if nr_dowodu_input else ""
+            
+            # --- POPRAWKA: SAM NUMER DOWODU BEZ TEKSTU ---
+            dowod_z_napisem = nr_dowodu_input.strip() if nr_dowodu_input else ""
             
             dane_do_pdf = {
-                "Firma": dane_firmy['nazwa'], 
-                "adres": dane_firmy['adres'],
+                "Firma": finalna_nazwa_firmy, # Bierze nazwę z okienka, które mogłeś poprawić
+                "adres": dane_z_api['adres'],
                 "NIP": nip,
-                "REGON": dane_firmy['regon'],
-                "KRS": dane_firmy['krs'],
+                "REGON": dane_z_api['regon'],
+                "KRS": dane_z_api['krs'],
                 "Email": email_input,             
                 ".Email": email_input,             
                 "Telefon": tel_input,             
@@ -118,7 +131,7 @@ if st.button("Generuj PDF", type="primary"):
                             if annot_obj.get("/Subtype") == "/Widget":
                                 annot_obj.update({NameObject("/Ff"): NumberObject(1)})
 
-                surowa_nazwa = dane_firmy['nazwa']
+                surowa_nazwa = finalna_nazwa_firmy
                 formy_prawne = r"\b(SPÓŁKA Z OGRANICZONĄ ODPOWIEDZIALNOŚCIĄ|SPÓŁKA Z O\.O\.|SP\. Z O\.O\.|SP Z O O|SPÓŁKA Z O O|SPÓŁKA JAWNA|SP\. J\.|SP J|SPÓŁKA AKCYJNA|S\.A\.|SA|SPÓŁKA KOMANDYTOWA|SP\. K\.|SP K|SPÓŁKA KOMANDYTOWO-AKCYJNA|S\.K\.A\.|SKA|SPÓŁKA PARTNERSKA|SP\. P\.|SP P|PROSTA SPÓŁKA AKCYJNA|P\.S\.A\.|PSA)\b"
                 krotka_nazwa = re.sub(formy_prawne, "", surowa_nazwa, flags=re.IGNORECASE).strip()
                 krotka_nazwa = re.sub(r'[,.-]+$', '', krotka_nazwa).strip()
@@ -130,9 +143,7 @@ if st.button("Generuj PDF", type="primary"):
                 writer.write(pdf_bufor)
                 pdf_bufor.seek(0)
                 
-                # NOWA WIADOMOŚĆ SUKCESU
                 st.success("Wygenerowano! Podpisz mnie proszę podpisem kwalifikowanym. Miłego dnia!")
-                
                 st.download_button("⬇️ Pobierz PDF", data=pdf_bufor, file_name=nazwa_pliku_wyjsciowego, mime="application/pdf")
                 
             except FileNotFoundError:
