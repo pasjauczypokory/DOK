@@ -3,7 +3,7 @@ import requests
 import datetime
 import re
 import io
-import fitz  # Potężna biblioteka PyMuPDF do twardego spłaszczania
+import fitz  # Potężna biblioteka PyMuPDF
 
 # --- INICJALIZACJA PAMIĘCI PODRĘCZNEJ (SESSION STATE) ---
 if 'wygenerowano' not in st.session_state:
@@ -144,6 +144,7 @@ if st.button("Generuj Dokumenty", type="primary"):
             # --- ZUPEŁNIE NOWA FUNKCJA GENERUJĄCA Z PYMUPDF ---
             def generuj_plik(szablon):
                 try:
+                    # 1. Wypełnianie dokumentu w pamięci
                     doc = fitz.open(szablon)
                     for page in doc:
                         widgets = page.widgets()
@@ -155,16 +156,28 @@ if st.button("Generuj Dokumenty", type="primary"):
                                     if wartosc:
                                         widget.field_value = wartosc
                                         widget.update() 
+                    
+                    # 2. TWARDE SPŁASZCZANIE (tworzenie zdjęć z PDF-a)
+                    doc_flat = fitz.open()
+                    for page in doc:
+                        # Zrzut obrazu w wysokiej rozdzielczości (powiększenie 2x dla ostrości tekstu)
+                        mat = fitz.Matrix(2, 2)
+                        pix = page.get_pixmap(matrix=mat)
                         
-                        # TWARDE SPŁASZCZANIE
-                        page.flatten()
+                        # Nowa czysta strona
+                        nowa_strona = doc_flat.new_page(width=page.rect.width, height=page.rect.height)
+                        # Naklejenie zdjęcia ze stroną wypełnionego formularza
+                        nowa_strona.insert_image(page.rect, pixmap=pix)
                     
                     pdf_bufor = io.BytesIO()
-                    doc.save(pdf_bufor)
+                    doc_flat.save(pdf_bufor)
+                    
+                    # Zamknięcie wirtualnych dokumentów
                     doc.close()
+                    doc_flat.close()
+                    
                     return pdf_bufor.getvalue() 
                 except Exception as e:
-                    # TUTAJ DODALIŚMY POKAZYWANIE DOKŁADNEGO BŁĘDU
                     st.error(f"Szczegóły błędu dla pliku {szablon}: {e}")
                     return None
             
@@ -181,7 +194,6 @@ if st.button("Generuj Dokumenty", type="primary"):
 
 # --- WYŚWIETLANIE PRZYCISKÓW ---
 if st.session_state.wygenerowano:
-    # Sprawdzamy czy główny plik się wygenerował
     if st.session_state.bufor_glowny:
         st.success("Wygenerowano! Podpisz mnie proszę podpisem kwalifikowanym. Miłego dnia!")
         
