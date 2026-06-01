@@ -116,12 +116,13 @@ if st.button("Generuj Dokumenty", type="primary"):
             krotka_nazwa = re.sub(r'[,.-]+$', '', krotka_nazwa).strip()
             bezpieczna_nazwa = re.sub(r'[\\/*?:"<>|]', "", krotka_nazwa).strip()
             
-            # --- ZUPEŁNIE NOWA FUNKCJA - "MASZYNA DO PISANIA" ---
+            # --- ZUPEŁNIE NOWA FUNKCJA - "MASZYNA DO PISANIA + ZDJĘCIE" ---
             def generuj_plik(szablon):
                 try:
                     doc = fitz.open(szablon)
                     font_bytes = get_font_bytes()
                     
+                    # ETAP 1: WYPEŁNIANIE W PAMIĘCI
                     for page in doc:
                         if font_bytes:
                             page.insert_font(fontname="Roboto", fontbuffer=font_bytes)
@@ -182,9 +183,6 @@ if st.button("Generuj Dokumenty", type="primary"):
                                 page.delete_annot(annot)
                                 
                         for rect, text, fs in pola_do_narysowania:
-                            # --- TUTAJ JEST TWOJA POPRAWKA ---
-                            # rect.y0 += 4 przesuwa tekst o kilka pikseli w dół, 
-                            # żeby odkleił się od górnej linii!
                             rect.y0 += 4    
                             rect.y1 += 15 
                             rect.x1 += 30   
@@ -195,9 +193,21 @@ if st.button("Generuj Dokumenty", type="primary"):
                             else:
                                 page.insert_textbox(rect, text, fontsize=fs, color=(0,0,0))
                     
+                    # ETAP 2: ZAMIANA NA "CYFROWY SKAN" W WYSOKIEJ JAKOŚCI
+                    doc_flat = fitz.open()
+                    for page in doc:
+                        # 2x powiększenie, żeby tekst po zmianie na zdjęcie był "żyleta"
+                        mat = fitz.Matrix(2, 2) 
+                        pix = page.get_pixmap(matrix=mat)
+                        
+                        nowa_strona = doc_flat.new_page(width=page.rect.width, height=page.rect.height)
+                        nowa_strona.insert_image(page.rect, pixmap=pix)
+                        
                     pdf_bufor = io.BytesIO()
-                    doc.save(pdf_bufor)
+                    doc_flat.save(pdf_bufor)
+                    
                     doc.close()
+                    doc_flat.close()
                     
                     return pdf_bufor.getvalue() 
                 except Exception as e:
