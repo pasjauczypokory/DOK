@@ -23,6 +23,7 @@ if 'wygenerowano' not in st.session_state:
     st.session_state.bezpieczna_nazwa_firmy = ""
     st.session_state.plik_glownego = ""
 
+# --- INTELIGENTNE POBIERANIE DANYCH ---
 def pobierz_dane_z_api(nip):
     dzisiaj = datetime.date.today().strftime("%Y-%m-%d")
     url = f"https://wl-api.mf.gov.pl/api/search/nip/{nip}?date={dzisiaj}"
@@ -32,11 +33,13 @@ def pobierz_dane_z_api(nip):
             dane = odpowiedz.json()['result']['subject']
             if dane:
                 adres = dane.get('workingAddress') or dane.get('residenceAddress') or ""
+                krs = dane.get('krs', '')
                 return {
                     "nazwa": dane.get('name', ''),
                     "regon": dane.get('regon', ''),
-                    "krs": dane.get('krs', '') or "Brak (CEIDG)",
-                    "adres": adres
+                    "krs": krs or "Brak (CEIDG)",
+                    "adres": adres,
+                    "czy_krs": bool(krs) # MAGIA: True jeśli ma KRS, False jeśli to JDG
                 }
         return None
     except Exception as e:
@@ -58,24 +61,30 @@ st.markdown("""
 st.divider() 
 
 # --- RESZTA APLIKACJI ---
-st.header("1. Wybierz rodzaj klienta i datę")
-col_typ, col_data = st.columns(2)
-with col_typ:
-    typ_klienta = st.radio("Rodzaj podmiotu:", ["Spółka (KRS)", "Jednoosobowa Działalność (JDG)"])
+st.header("1. Wpisz NIP i wybierz datę")
+col_nip, col_data = st.columns(2)
+with col_nip:
+    nip_input = st.text_input("Wpisz NIP (10 cyfr)")
 with col_data:
     wybrana_data = st.date_input("Data na dokumentach:", datetime.date.today())
 
-st.header("2. Dane z bazy")
-nip_input = st.text_input("Wpisz NIP (10 cyfr)")
-
 nazwa_do_edycji = ""
 dane_z_api = None
+czy_krs = False
 
+# AUTOMATYCZNE ROZPOZNAWANIE KLIENTA
 if nip_input and len(nip_input.strip().replace("-", "")) == 10:
     dane_z_api = pobierz_dane_z_api(nip_input.strip().replace("-", ""))
     if dane_z_api:
         nazwa_do_edycji = dane_z_api['nazwa']
+        czy_krs = dane_z_api['czy_krs']
+        
+        if czy_krs:
+            st.success(f"🏢 Wykryto Spółkę (KRS: {dane_z_api['krs']}). System automatycznie wygeneruje druk KRS.")
+        else:
+            st.info("👤 Wykryto działalność (CEIDG). System automatycznie wygeneruje druk JDG.")
 
+st.header("2. Dane z bazy")
 finalna_nazwa_firmy = st.text_input("Pełna nazwa firmy (edytuj, jeśli brakuje nazwy własnej w JDG):", value=nazwa_do_edycji)
 
 st.header("3. Dane uzupełniające")
@@ -89,7 +98,8 @@ with col2:
 
 col3, col4 = st.columns(2)
 with col3:
-    if typ_klienta == "Jednoosobowa Działalność (JDG)":
+    # Okienko na dowód pojawi się tylko przy JDG!
+    if not czy_krs:
         nr_dowodu_input = st.text_input("Seria i nr Dowodu Osobistego")
     else:
         nr_dowodu_input = ""
@@ -196,7 +206,6 @@ if st.button("Generuj Dokumenty", type="primary"):
                     # ETAP 2: ZAMIANA NA "CYFROWY SKAN" W WYSOKIEJ JAKOŚCI
                     doc_flat = fitz.open()
                     for page in doc:
-                        # 2x powiększenie, żeby tekst po zmianie na zdjęcie był "żyleta"
                         mat = fitz.Matrix(2, 2) 
                         pix = page.get_pixmap(matrix=mat)
                         
@@ -214,7 +223,8 @@ if st.button("Generuj Dokumenty", type="primary"):
                     st.error(f"Szczegóły błędu dla pliku {szablon}: {e}")
                     return None
             
-            plik_glownego = "KRS.pdf" if typ_klienta == "Spółka (KRS)" else "JDG.pdf"
+            # AUTOMATYCZNY WYBÓR PLIKU PDF
+            plik_glownego = "KRS.pdf" if czy_krs else "JDG.pdf"
             
             st.session_state.bufor_glowny = generuj_plik(plik_glownego)
             st.session_state.bufor_pelnomocnictwo = generuj_plik("Pelnomocnictwo.pdf")
