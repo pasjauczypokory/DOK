@@ -3,8 +3,16 @@ import requests
 import datetime
 import re
 import io
-from pypdf import PdfWriter, PdfReader
-from pypdf.generic import NameObject, NumberObject, ArrayObject
+import fitz  # Potężna biblioteka PyMuPDF do twardego spłaszczania
+
+# --- INICJALIZACJA PAMIĘCI PODRĘCZNEJ (SESSION STATE) ---
+if 'wygenerowano' not in st.session_state:
+    st.session_state.wygenerowano = False
+    st.session_state.bufor_glowny = None
+    st.session_state.bufor_pelnomocnictwo = None
+    st.session_state.bufor_zalacznik = None
+    st.session_state.bezpieczna_nazwa_firmy = ""
+    st.session_state.plik_glownego = ""
 
 def pobierz_dane_z_api(nip):
     dzisiaj = datetime.date.today().strftime("%Y-%m-%d")
@@ -70,7 +78,6 @@ with col2:
     tel_input = st.text_input("Telefon komórkowy")
     pesel_input = st.text_input("PESEL")
 
-# Dodatkowe pola zależne od wyboru
 col3, col4 = st.columns(2)
 with col3:
     if typ_klienta == "Jednoosobowa Działalność (JDG)":
@@ -80,6 +87,7 @@ with col3:
 with col4:
     id_weryfikacji_input = st.text_input("ID weryfikacji (do Załącznika)")
 
+# --- LOGIKA GENEROWANIA ---
 if st.button("Generuj Dokumenty", type="primary"):
     nip = nip_input.strip().replace("-", "")
     
@@ -124,7 +132,6 @@ if st.button("Generuj Dokumenty", type="primary"):
                 "TAK": "", 
                 "NIE": "",
                 
-                # Nasze nowe pole z ID!
                 "ID_weryfikacji": id_weryfikacji_input 
             }
             
@@ -132,53 +139,76 @@ if st.button("Generuj Dokumenty", type="primary"):
             formy_prawne = r"\b(SPÓŁKA Z OGRANICZONĄ ODPOWIEDZIALNOŚCIĄ|SPÓŁKA Z O\.O\.|SP\. Z O\.O\.|SP Z O O|SPÓŁKA Z O O|SPÓŁKA JAWNA|SP\. J\.|SP J|SPÓŁKA AKCYJNA|S\.A\.|SA|SPÓŁKA KOMANDYTOWA|SP\. K\.|SP K|SPÓŁKA KOMANDYTOWO-AKCYJNA|S\.K\.A\.|SKA|SPÓŁKA PARTNERSKA|SP\. P\.|SP P|PROSTA SPÓŁKA AKCYJNA|P\.S\.A\.|PSA)\b"
             krotka_nazwa = re.sub(formy_prawne, "", surowa_nazwa, flags=re.IGNORECASE).strip()
             krotka_nazwa = re.sub(r'[,.-]+$', '', krotka_nazwa).strip()
-            bezpieczna_nazwa_firmy = re.sub(r'[\\/*?:"<>|]', "", krotka_nazwa).strip()
+            bezpieczna_nazwa = re.sub(r'[\\/*?:"<>|]', "", krotka_nazwa).strip()
             
+            # --- ZUPEŁNIE NOWA FUNKCJA GENERUJĄCA Z PYMUPDF ---
             def generuj_plik(szablon):
                 try:
-                    writer = PdfWriter(clone_from=szablon)
-                    try:
-                        writer.add_need_appearances()
-                    except Exception:
-                        pass 
+                    doc = fitz.open(szablon)
+                    for page in doc:
+                        widgets = page.widgets()
+                        if widgets:
+                            for widget in widgets:
+                                nazwa_pola = widget.field_name
+                                if nazwa_pola in dane_do_pdf:
+                                    wartosc = str(dane_do_pdf[nazwa_pola])
+                                    if wartosc:
+                                        widget.field_value = wartosc
+                                        widget.update() # Rysuje wizualizację tekstu
+                        
+                        # TWARDE SPŁASZCZANIE
+                        page.flatten()
                     
-                    for strona in writer.pages:
-                        writer.update_page_form_field_values(strona, dane_do_pdf)
-                    
-                    for page in writer.pages:
-                        if "/Annots" in page:
-                            for annot in page["/Annots"]:
-                                annot_obj = annot.get_object()
-                                if annot_obj.get("/Subtype") == "/Widget":
-                                    annot_obj.update({NameObject("/Ff"): NumberObject(1)}) 
-                                    
                     pdf_bufor = io.BytesIO()
-                    writer.write(pdf_bufor)
-                    pdf_bufor.seek(0)
-                    return pdf_bufor
-                except FileNotFoundError:
+                    doc.save(pdf_bufor)
+                    doc.close()
+                    # Zwracamy czyste bajty, które łatwo trzymać w pamięci podręcznej
+                    return pdf_bufor.getvalue() 
+                except Exception as e:
                     return None
             
             plik_glownego = "KRS.pdf" if typ_klienta == "Spółka (KRS)" else "JDG.pdf"
             
-            bufor_glowny = generuj_plik(plik_glownego)
-            bufor_pelnomocnictwo = generuj_plik("Pelnomocnictwo.pdf")
-            bufor_zalacznik = generuj_plik("Zalacznik.pdf")
+            # Zapis do pamięci (Session State)
+            st.session_state.bufor_glowny = generuj_plik(plik_glownego)
+            st.session_state.bufor_pelnomocnictwo = generuj_plik("Pelnomocnictwo.pdf")
+            st.session_state.bufor_zalacznik = generuj_plik("Zalacznik.pdf")
+            st.session_state.bezpieczna_nazwa_firmy = bezpieczna_nazwa
+            st.session_state.plik_glownego = plik_glownego
             
-            st.success("Wygenerowano! Podpisz mnie proszę podpisem kwalifikowanym. Miłego dnia!")
+            st.session_state.wygenerowano = True
+
+# --- WYŚWIETLANIE PRZYCISKÓW (zawsze gdy wygenerowano = True) ---
+if st.session_state.wygenerowano:
+    st.success("Wygenerowano! Podpisz mnie proszę podpisem kwalifikowanym. Miłego dnia!")
+    
+    col_btn1, col_btn2, col_btn3 = st.columns(3)
+    
+    if st.session_state.bufor_glowny:
+        with col_btn1:
+            st.download_button(
+                "⬇️ Pobierz Oświadczenie", 
+                data=st.session_state.bufor_glowny, 
+                file_name=f"Oswiadczenie_{st.session_state.bezpieczna_nazwa_firmy}.pdf", 
+                mime="application/pdf"
+            )
+    else:
+        st.error(f"Brak pliku {st.session_state.plik_glownego} na serwerze.")
+        
+    if st.session_state.bufor_pelnomocnictwo:
+        with col_btn2:
+            st.download_button(
+                "⬇️ Pobierz Pełnomocnictwo", 
+                data=st.session_state.bufor_pelnomocnictwo, 
+                file_name=f"Pelnomocnictwo_{st.session_state.bezpieczna_nazwa_firmy}.pdf", 
+                mime="application/pdf"
+            )
             
-            col_btn1, col_btn2, col_btn3 = st.columns(3)
-            
-            if bufor_glowny:
-                with col_btn1:
-                    st.download_button("⬇️ Pobierz Oświadczenie", data=bufor_glowny, file_name=f"Oswiadczenie_{bezpieczna_nazwa_firmy}.pdf", mime="application/pdf")
-            else:
-                st.error(f"Brak pliku {plik_glownego} na serwerze.")
-                
-            if bufor_pelnomocnictwo:
-                with col_btn2:
-                    st.download_button("⬇️ Pobierz Pełnomocnictwo", data=bufor_pelnomocnictwo, file_name=f"Pelnomocnictwo_{bezpieczna_nazwa_firmy}.pdf", mime="application/pdf")
-                    
-            if bufor_zalacznik:
-                with col_btn3:
-                    st.download_button("⬇️ Pobierz Załącznik", data=bufor_zalacznik, file_name=f"Zalacznik_{bezpieczna_nazwa_firmy}.pdf", mime="application/pdf")
+    if st.session_state.bufor_zalacznik:
+        with col_btn3:
+            st.download_button(
+                "⬇️ Pobierz Załącznik", 
+                data=st.session_state.bufor_zalacznik, 
+                file_name=f"Zalacznik_{st.session_state.bezpieczna_nazwa_firmy}.pdf", 
+                mime="application/pdf"
+            )
