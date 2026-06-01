@@ -5,6 +5,15 @@ import re
 import io
 import fitz  # Potężna biblioteka PyMuPDF
 
+# --- POBIERANIE OFICJALNEJ CZCIONKI Z POLSKIMI ZNAKAMI ---
+@st.cache_data
+def get_font_bytes():
+    try:
+        url = "https://fonts.gstatic.com/s/roboto/v30/KFOmCnqEu92Fr1Me5Q.ttf"
+        return requests.get(url).content
+    except:
+        return None
+
 # --- INICJALIZACJA PAMIĘCI PODRĘCZNEJ (SESSION STATE) ---
 if 'wygenerowano' not in st.session_state:
     st.session_state.wygenerowano = False
@@ -101,91 +110,98 @@ if st.button("Generuj Dokumenty", type="primary"):
         else:
             dowod_z_napisem = nr_dowodu_input.strip() if nr_dowodu_input else ""
             
-            # --- POSZERZONY SŁOWNIK PÓL ---
-            dane_do_pdf = {
-                "Firma": finalna_nazwa_firmy, 
-                "Firma_2": finalna_nazwa_firmy, 
-                "Firma2": finalna_nazwa_firmy,  
-                "adres": dane_z_api['adres'],
-                "adres_2": dane_z_api['adres'],
-                "adres2": dane_z_api['adres'],
-                "NIP": nip,
-                "REGON": dane_z_api['regon'],
-                "KRS": dane_z_api['krs'],
-                
-                "Email": email_input,             
-                ".Email": email_input,             
-                "E-mail": email_input, 
-                
-                "Telefon": tel_input,             
-                "DO": dowod_z_napisem,                 
-                "PESEL": pesel_input,             
-                
-                "ImieNazwisko": imie_input,       
-                "ImieNazwisko_2": imie_input,   
-                "ImieNazwisko2": imie_input,    
-                "imie_i_nazwisko_klienta": imie_input, 
-                
-                "Miejscowość": "Warszawa", 
-                
-                "Haslo": "12345678",                   
-                "Hasło": "12345678", 
-                
-                "dzień": wybrana_data.strftime("%d"),
-                "miesiac": wybrana_data.strftime("%m"),
-                "rok": wybrana_data.strftime("%Y"),
-                "Data": wybrana_data.strftime("%d.%m.%Y"),
-                
-                "id": "",
-                "ID": "",
-                "TAK": "", 
-                "NIE": "",
-                
-                "ID_weryfikacji": id_weryfikacji_input 
-            }
-            
             surowa_nazwa = finalna_nazwa_firmy
             formy_prawne = r"\b(SPÓŁKA Z OGRANICZONĄ ODPOWIEDZIALNOŚCIĄ|SPÓŁKA Z O\.O\.|SP\. Z O\.O\.|SP Z O O|SPÓŁKA Z O O|SPÓŁKA JAWNA|SP\. J\.|SP J|SPÓŁKA AKCYJNA|S\.A\.|SA|SPÓŁKA KOMANDYTOWA|SP\. K\.|SP K|SPÓŁKA KOMANDYTOWO-AKCYJNA|S\.K\.A\.|SKA|SPÓŁKA PARTNERSKA|SP\. P\.|SP P|PROSTA SPÓŁKA AKCYJNA|P\.S\.A\.|PSA)\b"
             krotka_nazwa = re.sub(formy_prawne, "", surowa_nazwa, flags=re.IGNORECASE).strip()
             krotka_nazwa = re.sub(r'[,.-]+$', '', krotka_nazwa).strip()
             bezpieczna_nazwa = re.sub(r'[\\/*?:"<>|]', "", krotka_nazwa).strip()
             
-            # --- ZUPEŁNIE NOWA FUNKCJA GENERUJĄCA Z PYMUPDF ---
+            # --- ZUPEŁNIE NOWA FUNKCJA - "MASZYNA DO PISANIA" ---
             def generuj_plik(szablon):
                 try:
-                    # 1. Wypełnianie dokumentu w pamięci
                     doc = fitz.open(szablon)
+                    font_bytes = get_font_bytes()
+                    
                     for page in doc:
+                        if font_bytes:
+                            page.insert_font(fontname="Roboto", fontbuffer=font_bytes)
+                        
+                        pola_do_narysowania = []
                         widgets = page.widgets()
+                        
                         if widgets:
                             for widget in widgets:
-                                nazwa_pola = widget.field_name
-                                if nazwa_pola in dane_do_pdf:
-                                    wartosc = str(dane_do_pdf[nazwa_pola])
+                                # Skupiamy się tylko na polach tekstowych
+                                if widget.field_type in [fitz.PDF_WIDGET_TYPE_TEXT, fitz.PDF_WIDGET_TYPE_COMBOBOX]:
+                                    nazwa_pola = widget.field_name or ""
+                                    n_lower = nazwa_pola.lower()
+                                    wartosc = ""
+                                    
+                                    # INTELIGENTNE MAPOWANIE - Wyłapuje słowa kluczowe niezależnie od nazwy z edytora!
+                                    if "firma" in n_lower or "nazwa" in n_lower:
+                                        wartosc = finalna_nazwa_firmy
+                                    elif "adres" in n_lower:
+                                        wartosc = dane_z_api['adres'] if dane_z_api else ""
+                                    elif "nip" in n_lower:
+                                        wartosc = nip
+                                    elif "regon" in n_lower:
+                                        wartosc = dane_z_api['regon'] if dane_z_api else ""
+                                    elif "krs" in n_lower:
+                                        wartosc = dane_z_api['krs'] if dane_z_api else ""
+                                    elif "mail" in n_lower:
+                                        wartosc = email_input
+                                    elif "telefon" in n_lower:
+                                        wartosc = tel_input
+                                    elif "do" == nazwa_pola or "dowód" in n_lower or "dowod" in n_lower:
+                                        wartosc = dowod_z_napisem
+                                    elif "pesel" in n_lower:
+                                        wartosc = pesel_input
+                                    elif "imie" in n_lower or "nazwisko" in n_lower:
+                                        wartosc = imie_input
+                                    elif "miejscowość" in n_lower or "miejscowosc" in n_lower:
+                                        wartosc = "Warszawa"
+                                    elif "haslo" in n_lower or "hasło" in n_lower:
+                                        wartosc = "12345678"
+                                    elif "dzień" in n_lower or "dzien" in n_lower:
+                                        wartosc = wybrana_data.strftime("%d")
+                                    elif "miesiac" in n_lower:
+                                        wartosc = wybrana_data.strftime("%m")
+                                    elif "rok" in n_lower:
+                                        wartosc = wybrana_data.strftime("%Y")
+                                    elif "data" in n_lower:
+                                        wartosc = wybrana_data.strftime("%d.%m.%Y")
+                                    elif "id" in n_lower and "weryfikacji" in n_lower:
+                                        wartosc = id_weryfikacji_input
+
                                     if wartosc:
-                                        widget.field_value = wartosc
-                                        
-                                        # --- NAPRAWA UCINANIA TEKSTU ---
-                                        # 0 wymusza na bibliotece tryb AUTO:
-                                        # dopasowuje czcionkę i wyśrodkowuje tekst w pionie
-                                        widget.text_fontsize = 0 
-                                        
-                                        widget.update() 
-                    
-                    # 2. TWARDE SPŁASZCZANIE (tworzenie zdjęć z PDF-a)
-                    doc_flat = fitz.open()
-                    for page in doc:
-                        mat = fitz.Matrix(2, 2)
-                        pix = page.get_pixmap(matrix=mat)
+                                        # Pobieramy czcionkę z pola (jeśli jest "Auto" czyli 0, wymuszamy 8, tak jak lubisz)
+                                        fs = widget.text_fontsize
+                                        if fs <= 0:
+                                            fs = 8
+                                        pola_do_narysowania.append((widget.rect, str(wartosc), fs))
                         
-                        nowa_strona = doc_flat.new_page(width=page.rect.width, height=page.rect.height)
-                        nowa_strona.insert_image(page.rect, pixmap=pix)
+                        # BEZPOWROTNE KASOWANIE RAMEK (Aby Szafir nie miał czego zerować)
+                        for annot in page.annots():
+                            if annot.type[0] == 20: 
+                                page.delete_annot(annot)
+                                
+                        # RYSOWANIE TEKSTU
+                        for rect, text, fs in pola_do_narysowania:
+                            # ROZWIĄZANIE PROBLEMU PRZEKREŚLANIA (UCINANIA DOŁU)
+                            # Zwiększamy prostokąt w dół o 15 punktów i w prawo o 30 punktów, zdejmując "gilotynę"
+                            rect.y0 -= 2
+                            rect.y1 += 15 
+                            rect.x1 += 30   
+                            rect.x0 += 2
+                            
+                            if font_bytes:
+                                page.insert_textbox(rect, text, fontname="Roboto", fontsize=fs, color=(0,0,0))
+                            else:
+                                page.insert_textbox(rect, text, fontsize=fs, color=(0,0,0))
                     
                     pdf_bufor = io.BytesIO()
-                    doc_flat.save(pdf_bufor)
-                    
+                    doc.save(pdf_bufor)
                     doc.close()
-                    doc_flat.close()
                     
                     return pdf_bufor.getvalue() 
                 except Exception as e:
@@ -194,7 +210,6 @@ if st.button("Generuj Dokumenty", type="primary"):
             
             plik_glownego = "KRS.pdf" if typ_klienta == "Spółka (KRS)" else "JDG.pdf"
             
-            # Zapis do pamięci (Session State)
             st.session_state.bufor_glowny = generuj_plik(plik_glownego)
             st.session_state.bufor_pelnomocnictwo = generuj_plik("Pelnomocnictwo.pdf")
             st.session_state.bufor_zalacznik = generuj_plik("Zalacznik.pdf")
@@ -203,7 +218,6 @@ if st.button("Generuj Dokumenty", type="primary"):
             
             st.session_state.wygenerowano = True
 
-# --- WYŚWIETLANIE PRZYCISKÓW ---
 if st.session_state.wygenerowano:
     if st.session_state.bufor_glowny:
         st.success("Wygenerowano! Podpisz mnie proszę podpisem kwalifikowanym. Miłego dnia!")
