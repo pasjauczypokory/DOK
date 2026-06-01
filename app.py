@@ -131,13 +131,11 @@ if st.button("Generuj Dokumenty", type="primary"):
                         
                         if widgets:
                             for widget in widgets:
-                                # Skupiamy się tylko na polach tekstowych
                                 if widget.field_type in [fitz.PDF_WIDGET_TYPE_TEXT, fitz.PDF_WIDGET_TYPE_COMBOBOX]:
                                     nazwa_pola = widget.field_name or ""
                                     n_lower = nazwa_pola.lower()
                                     wartosc = ""
                                     
-                                    # INTELIGENTNE MAPOWANIE - Wyłapuje słowa kluczowe niezależnie od nazwy z edytora!
                                     if "firma" in n_lower or "nazwa" in n_lower:
                                         wartosc = finalna_nazwa_firmy
                                     elif "adres" in n_lower:
@@ -174,22 +172,20 @@ if st.button("Generuj Dokumenty", type="primary"):
                                         wartosc = id_weryfikacji_input
 
                                     if wartosc:
-                                        # Pobieramy czcionkę z pola (jeśli jest "Auto" czyli 0, wymuszamy 8, tak jak lubisz)
                                         fs = widget.text_fontsize
                                         if fs <= 0:
                                             fs = 8
                                         pola_do_narysowania.append((widget.rect, str(wartosc), fs))
                         
-                        # BEZPOWROTNE KASOWANIE RAMEK (Aby Szafir nie miał czego zerować)
                         for annot in page.annots():
                             if annot.type[0] == 20: 
                                 page.delete_annot(annot)
                                 
-                        # RYSOWANIE TEKSTU
                         for rect, text, fs in pola_do_narysowania:
-                            # ROZWIĄZANIE PROBLEMU PRZEKREŚLANIA (UCINANIA DOŁU)
-                            # Zwiększamy prostokąt w dół o 15 punktów i w prawo o 30 punktów, zdejmując "gilotynę"
-                            rect.y0 -= 2
+                            # --- TUTAJ JEST TWOJA POPRAWKA ---
+                            # rect.y0 += 4 przesuwa tekst o kilka pikseli w dół, 
+                            # żeby odkleił się od górnej linii!
+                            rect.y0 += 4    
                             rect.y1 += 15 
                             rect.x1 += 30   
                             rect.x0 += 2
