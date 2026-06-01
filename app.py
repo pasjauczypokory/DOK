@@ -154,7 +154,7 @@ if st.button("Generuj Dokumenty", type="primary"):
                                     wartosc = str(dane_do_pdf[nazwa_pola])
                                     if wartosc:
                                         widget.field_value = wartosc
-                                        widget.update() # Rysuje wizualizację tekstu
+                                        widget.update() 
                         
                         # TWARDE SPŁASZCZANIE
                         page.flatten()
@@ -162,9 +162,10 @@ if st.button("Generuj Dokumenty", type="primary"):
                     pdf_bufor = io.BytesIO()
                     doc.save(pdf_bufor)
                     doc.close()
-                    # Zwracamy czyste bajty, które łatwo trzymać w pamięci podręcznej
                     return pdf_bufor.getvalue() 
                 except Exception as e:
+                    # TUTAJ DODALIŚMY POKAZYWANIE DOKŁADNEGO BŁĘDU
+                    st.error(f"Szczegóły błędu dla pliku {szablon}: {e}")
                     return None
             
             plik_glownego = "KRS.pdf" if typ_klienta == "Spółka (KRS)" else "JDG.pdf"
@@ -178,13 +179,14 @@ if st.button("Generuj Dokumenty", type="primary"):
             
             st.session_state.wygenerowano = True
 
-# --- WYŚWIETLANIE PRZYCISKÓW (zawsze gdy wygenerowano = True) ---
+# --- WYŚWIETLANIE PRZYCISKÓW ---
 if st.session_state.wygenerowano:
-    st.success("Wygenerowano! Podpisz mnie proszę podpisem kwalifikowanym. Miłego dnia!")
-    
-    col_btn1, col_btn2, col_btn3 = st.columns(3)
-    
+    # Sprawdzamy czy główny plik się wygenerował
     if st.session_state.bufor_glowny:
+        st.success("Wygenerowano! Podpisz mnie proszę podpisem kwalifikowanym. Miłego dnia!")
+        
+        col_btn1, col_btn2, col_btn3 = st.columns(3)
+        
         with col_btn1:
             st.download_button(
                 "⬇️ Pobierz Oświadczenie", 
@@ -192,23 +194,23 @@ if st.session_state.wygenerowano:
                 file_name=f"Oswiadczenie_{st.session_state.bezpieczna_nazwa_firmy}.pdf", 
                 mime="application/pdf"
             )
-    else:
-        st.error(f"Brak pliku {st.session_state.plik_glownego} na serwerze.")
-        
-    if st.session_state.bufor_pelnomocnictwo:
-        with col_btn2:
-            st.download_button(
-                "⬇️ Pobierz Pełnomocnictwo", 
-                data=st.session_state.bufor_pelnomocnictwo, 
-                file_name=f"Pelnomocnictwo_{st.session_state.bezpieczna_nazwa_firmy}.pdf", 
-                mime="application/pdf"
-            )
             
-    if st.session_state.bufor_zalacznik:
-        with col_btn3:
-            st.download_button(
-                "⬇️ Pobierz Załącznik", 
-                data=st.session_state.bufor_zalacznik, 
-                file_name=f"Zalacznik_{st.session_state.bezpieczna_nazwa_firmy}.pdf", 
-                mime="application/pdf"
-            )
+        if st.session_state.bufor_pelnomocnictwo:
+            with col_btn2:
+                st.download_button(
+                    "⬇️ Pobierz Pełnomocnictwo", 
+                    data=st.session_state.bufor_pelnomocnictwo, 
+                    file_name=f"Pelnomocnictwo_{st.session_state.bezpieczna_nazwa_firmy}.pdf", 
+                    mime="application/pdf"
+                )
+                
+        if st.session_state.bufor_zalacznik:
+            with col_btn3:
+                st.download_button(
+                    "⬇️ Pobierz Załącznik", 
+                    data=st.session_state.bufor_zalacznik, 
+                    file_name=f"Zalacznik_{st.session_state.bezpieczna_nazwa_firmy}.pdf", 
+                    mime="application/pdf"
+                )
+    else:
+        st.error(f"Nie udało się wygenerować głównego pliku ({st.session_state.plik_glownego}). Zobacz błąd powyżej.")
