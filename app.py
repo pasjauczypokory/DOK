@@ -122,47 +122,4 @@ if st.button("Generuj Dokumenty", type="primary"):
             surowa_nazwa = finalna_nazwa_firmy
             formy_prawne = r"\b(SPÓŁKA Z OGRANICZONĄ ODPOWIEDZIALNOŚCIĄ|SPÓŁKA Z O\.O\.|SP\. Z O\.O\.|SP Z O O|SPÓŁKA Z O O|SPÓŁKA JAWNA|SP\. J\.|SP J|SPÓŁKA AKCYJNA|S\.A\.|SA|SPÓŁKA KOMANDYTOWA|SP\. K\.|SP K|SPÓŁKA KOMANDYTOWO-AKCYJNA|S\.K\.A\.|SKA|SPÓŁKA PARTNERSKA|SP\. P\.|SP P|PROSTA SPÓŁKA AKCYJNA|P\.S\.A\.|PSA)\b"
             krotka_nazwa = re.sub(formy_prawne, "", surowa_nazwa, flags=re.IGNORECASE).strip()
-            krotka_nazwa = re.sub(r'[,.-]+$', '', krotka_nazwa).strip()
-            bezpieczna_nazwa = re.sub(r'[\\/*?:"<>|]', "", krotka_nazwa).strip()
-            
-            def generuj_plik(szablon):
-                try:
-                    doc = fitz.open(szablon)
-                    font_bytes = get_font_bytes()
-                    
-                    # ETAP 1: WYPEŁNIANIE W PAMIĘCI
-                    for page in doc:
-                        if font_bytes:
-                            page.insert_font(fontname="Roboto", fontbuffer=font_bytes)
-                        
-                        pola_do_narysowania = []
-                        
-                        # --- TUTAJ UPROŚCIŁEM KOD (Brak zbędnych ifów i spacji) ---
-                        for widget in page.widgets():
-                            if widget.field_type in [fitz.PDF_WIDGET_TYPE_TEXT, fitz.PDF_WIDGET_TYPE_COMBOBOX]:
-                                nazwa_pola = widget.field_name or ""
-                                n_lower = nazwa_pola.lower()
-                                wartosc = ""
-                                
-                                if "firma" in n_lower or "nazwa" in n_lower:
-                                    wartosc = finalna_nazwa_firmy
-                                elif "adres" in n_lower:
-                                    wartosc = dane_z_api['adres'] if dane_z_api else ""
-                                elif "nip" in n_lower:
-                                    wartosc = nip
-                                elif "regon" in n_lower:
-                                    wartosc = dane_z_api['regon'] if dane_z_api else ""
-                                elif "krs" in n_lower:
-                                    wartosc = dane_z_api['krs'] if dane_z_api else ""
-                                elif "mail" in n_lower:
-                                    wartosc = email_input
-                                elif "telefon" in n_lower:
-                                    wartosc = tel_input
-                                elif n_lower == "do" or "dowód" in n_lower or "dowod" in n_lower:
-                                    wartosc = dowod_z_napisem
-                                elif "pesel" in n_lower:
-                                    wartosc = pesel_input
-                                elif "imie" in n_lower or "nazwisko" in n_lower:
-                                    wartosc = imie_input
-                                elif "miejscowość" in n_lower or "miejscowosc" in n_lower:
-                                    wartosc = "Warszawa
+            krotka_naz
