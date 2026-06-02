@@ -136,8 +136,33 @@ if st.button("Generuj Dokumenty", type="primary"):
                             page.insert_font(fontname="Roboto", fontbuffer=font_bytes)
                         
                         pola_do_narysowania = []
-                        widgets = page.widgets()
                         
-                        if widgets:
-                            for widget in widgets:
-                                if widget.field_type in [fitz.PDF_WIDGET_TYPE_TEXT, fitz.PDF_WIDGET_TYPE_COMBOBOX]:
+                        # --- TUTAJ UPROŚCIŁEM KOD (Brak zbędnych ifów i spacji) ---
+                        for widget in page.widgets():
+                            if widget.field_type in [fitz.PDF_WIDGET_TYPE_TEXT, fitz.PDF_WIDGET_TYPE_COMBOBOX]:
+                                nazwa_pola = widget.field_name or ""
+                                n_lower = nazwa_pola.lower()
+                                wartosc = ""
+                                
+                                if "firma" in n_lower or "nazwa" in n_lower:
+                                    wartosc = finalna_nazwa_firmy
+                                elif "adres" in n_lower:
+                                    wartosc = dane_z_api['adres'] if dane_z_api else ""
+                                elif "nip" in n_lower:
+                                    wartosc = nip
+                                elif "regon" in n_lower:
+                                    wartosc = dane_z_api['regon'] if dane_z_api else ""
+                                elif "krs" in n_lower:
+                                    wartosc = dane_z_api['krs'] if dane_z_api else ""
+                                elif "mail" in n_lower:
+                                    wartosc = email_input
+                                elif "telefon" in n_lower:
+                                    wartosc = tel_input
+                                elif n_lower == "do" or "dowód" in n_lower or "dowod" in n_lower:
+                                    wartosc = dowod_z_napisem
+                                elif "pesel" in n_lower:
+                                    wartosc = pesel_input
+                                elif "imie" in n_lower or "nazwisko" in n_lower:
+                                    wartosc = imie_input
+                                elif "miejscowość" in n_lower or "miejscowosc" in n_lower:
+                                    wartosc = "Warszawa
