@@ -39,7 +39,7 @@ def pobierz_dane_z_api(nip):
                     "regon": dane.get('regon', ''),
                     "krs": krs or "Brak (CEIDG)",
                     "adres": adres,
-                    "czy_krs": bool(krs) # MAGIA: True jeśli ma KRS, False jeśli to JDG
+                    "czy_krs": bool(krs) 
                 }
         return None
     except Exception as e:
@@ -98,7 +98,6 @@ with col2:
 
 col3, col4 = st.columns(2)
 with col3:
-    # Okienko na dowód pojawi się tylko przy JDG!
     if not czy_krs:
         nr_dowodu_input = st.text_input("Seria i nr Dowodu Osobistego")
     else:
@@ -126,7 +125,6 @@ if st.button("Generuj Dokumenty", type="primary"):
             krotka_nazwa = re.sub(r'[,.-]+$', '', krotka_nazwa).strip()
             bezpieczna_nazwa = re.sub(r'[\\/*?:"<>|]', "", krotka_nazwa).strip()
             
-            # --- ZUPEŁNIE NOWA FUNKCJA - "MASZYNA DO PISANIA + ZDJĘCIE" ---
             def generuj_plik(szablon):
                 try:
                     doc = fitz.open(szablon)
@@ -203,17 +201,26 @@ if st.button("Generuj Dokumenty", type="primary"):
                             else:
                                 page.insert_textbox(rect, text, fontsize=fs, color=(0,0,0))
                     
-                    # ETAP 2: ZAMIANA NA "CYFROWY SKAN" W WYSOKIEJ JAKOŚCI
+                    # ETAP 2: ZAMIANA NA "CYFROWY SKAN" W ZNACZNIE MNIEJSZEJ WADZE
                     doc_flat = fitz.open()
                     for page in doc:
-                        mat = fitz.Matrix(2, 2) 
-                        pix = page.get_pixmap(matrix=mat)
+                        # Zmieniony zoom z 2.0 na 1.5 - różnica wizualna minimalna, różnica w MB drastyczna
+                        mat = fitz.Matrix(1.5, 1.5) 
+                        # alpha=False ucina dodatkowe megabajty usuwając przezroczystość
+                        pix = page.get_pixmap(matrix=mat, alpha=False) 
                         
                         nowa_strona = doc_flat.new_page(width=page.rect.width, height=page.rect.height)
-                        nowa_strona.insert_image(page.rect, pixmap=pix)
+                        
+                        try:
+                            # Próba kompresji do JPEG przed wklejeniem
+                            img_bytes = pix.tobytes("jpeg")
+                            nowa_strona.insert_image(page.rect, stream=img_bytes)
+                        except:
+                            nowa_strona.insert_image(page.rect, pixmap=pix)
                         
                     pdf_bufor = io.BytesIO()
-                    doc_flat.save(pdf_bufor)
+                    # deflate=True - Ostateczna kompresja całego pliku na wzór ZIP
+                    doc_flat.save(pdf_bufor, deflate=True, garbage=3)
                     
                     doc.close()
                     doc_flat.close()
@@ -223,7 +230,6 @@ if st.button("Generuj Dokumenty", type="primary"):
                     st.error(f"Szczegóły błędu dla pliku {szablon}: {e}")
                     return None
             
-            # AUTOMATYCZNY WYBÓR PLIKU PDF
             plik_glownego = "KRS.pdf" if czy_krs else "JDG.pdf"
             
             st.session_state.bufor_glowny = generuj_plik(plik_glownego)
