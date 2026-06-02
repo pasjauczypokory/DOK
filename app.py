@@ -98,10 +98,8 @@ with col2:
 
 col3, col4 = st.columns(2)
 with col3:
-    if not czy_krs:
-        nr_dowodu_input = st.text_input("Seria i nr Dowodu Osobistego")
-    else:
-        nr_dowodu_input = ""
+    # POLE DOWODU ZAWSZE WIDOCZNE: Można wpisać dla JDG i do Załącznika przy spółce
+    nr_dowodu_input = st.text_input("Seria i nr Dowodu Osobistego")
 with col4:
     id_weryfikacji_input = st.text_input("ID weryfikacji (do Załącznika)")
 
@@ -130,7 +128,6 @@ if st.button("Generuj Dokumenty", type="primary"):
                     doc = fitz.open(szablon)
                     font_bytes = get_font_bytes()
                     
-                    # ETAP 1: WYPEŁNIANIE W PAMIĘCI
                     for page in doc:
                         if font_bytes:
                             page.insert_font(fontname="Roboto", fontbuffer=font_bytes)
@@ -140,7 +137,7 @@ if st.button("Generuj Dokumenty", type="primary"):
                         for widget in page.widgets():
                             if widget.field_type in [fitz.PDF_WIDGET_TYPE_TEXT, fitz.PDF_WIDGET_TYPE_COMBOBOX]:
                                 nazwa_pola = widget.field_name or ""
-                                n_lower = nazwa_pola.lower()
+                                n_lower = nazwa_pola.strip().lower()
                                 wartosc = ""
                                 
                                 if "firma" in n_lower or "nazwa" in n_lower:
@@ -157,7 +154,8 @@ if st.button("Generuj Dokumenty", type="primary"):
                                     wartosc = email_input
                                 elif "telefon" in n_lower:
                                     wartosc = tel_input
-                                elif n_lower == "do" or "dowód" in n_lower or "dowod" in n_lower:
+                                # SZTYWNE UDERZENIE W POLE "DO":
+                                elif nazwa_pola == "DO" or "dowód" in n_lower or "dowod" in n_lower:
                                     wartosc = dowod_z_napisem
                                 elif "pesel" in n_lower:
                                     wartosc = pesel_input
@@ -199,12 +197,10 @@ if st.button("Generuj Dokumenty", type="primary"):
                             else:
                                 page.insert_textbox(rect, text, fontsize=fs, color=(0,0,0))
                     
-                    # ETAP 2: ZAMIANA NA "CYFROWY SKAN" W ZNACZNIE MNIEJSZEJ WADZE
                     doc_flat = fitz.open()
                     for page in doc:
                         mat = fitz.Matrix(1.5, 1.5) 
                         pix = page.get_pixmap(matrix=mat, alpha=False) 
-                        
                         nowa_strona = doc_flat.new_page(width=page.rect.width, height=page.rect.height)
                         
                         try:
