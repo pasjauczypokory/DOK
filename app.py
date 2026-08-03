@@ -52,7 +52,7 @@ st.title("🩷 Generator + 📌 Linki")
 # --- SZYBKIE SKRÓTY (LINKI) ---
 st.markdown("""
 [🍊 OMNI](https://sso.online.orange.pl/capGui/?url=https://esklep.online.orange.pl/konsola-konsultanta) &nbsp; | &nbsp; 
-[🏢 Wyszukiwarka JDG](https://www.biznes.gov.pl/pl/wyszukiwarka-firm/) &nbsp; | &nbsp; 
+[🏢 Wyszukiwarka JDG](https://aplikacja.ceidg.gov.pl/ceidg/ceidg.public.ui/search.aspx) &nbsp; | &nbsp; 
 [🏛️ Wyszukiwarka KRS](https://wyszukiwarka-krs.ms.gov.pl/) &nbsp; | &nbsp; 
 [💻 VDI](https://login.t-mobile.pl/) &nbsp; | &nbsp; 
 [📡 W jakiej sieci numer?](https://bip.uke.gov.pl/numeracja/dostawca-uslug/) &nbsp; | &nbsp; 
